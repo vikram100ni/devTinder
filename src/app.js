@@ -3,13 +3,11 @@ import connectDb from "./config/database.js";
 const app = express();
 import User from "./models/user.js";
 
+app.use(express.json());
 app.post("/signup", async(req, res) => {
-  const user = new User({
-    firstName: "vikram",
-    lastName: "soni",
-    emailId: "jays8174@gmail.com",
-    password: "123456",
-  });
+const user = new User(req.body);
+  console.log(req.body);
+
   try {
      await user.save();
   res.send("user added successfully");
@@ -17,7 +15,7 @@ app.post("/signup", async(req, res) => {
     res.statusCode(501).send("error saving user" , + error.message);
   }
  
-});
+ });
 
 const port = 7777;
 connectDb()
