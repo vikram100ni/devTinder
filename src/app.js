@@ -2,17 +2,59 @@ import express from "express";
 import connectDb from "./config/database.js";
 const app = express();
 import User from "./models/user.js";
+import { validateSignUpData } from "./utils/validation.js";
+import bcrypt from "bcrypt";
 
 app.use(express.json());
-app.post("/signup", async (req, res) => {
-  const user = new User(req.body);
-  console.log(req.body);
 
+app.get("/", (req, res) => {
+  res.send("hello server");
+});
+//signup api......
+app.post("/signup", async (req, res) => {
   try {
+    //validation of data...
+    validateSignUpData(req);
+    const { firstName, lastName, emailId, password, age, gender } = req.body;
+    console.log(req.body);
+
+    //encrypt password
+    const hashPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: hashPassword,
+      age,
+      gender,
+    });
+
     await user.save();
     res.send("user added successfully");
   } catch (error) {
-    res.statusCode(501).send("error saving user", +error.message);
+    res.status(501).send("ERROR " + error.message);
+  }
+});
+
+//login api
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      throw new Error("invalid credentials");
+    }
+    const isComparePassword = await bcrypt.compare(password, user.password);
+    console.log(isComparePassword);
+    if (!isComparePassword) {
+      throw new Error("invalid credentials"); 
+    } else {
+      res.send("login successfully");
+    }
+  } catch (error) {
+    res.status(500).send("ERROR " + error.message);
   }
 });
 //get user by email
@@ -53,7 +95,7 @@ app.delete("/user", async (req, res) => {
 });
 
 //update user api
-app.patch("/user", async (req, res) => {
+app.patch("/user/:userId", async (req, res) => {
   const userId = req.params?.userId;
   const data = req.body;
   try {
@@ -62,10 +104,10 @@ app.patch("/user", async (req, res) => {
       ALLOWED_UPDATES.includes(k),
     );
     if (!isUpdateAllowed) {
-      throw new error("update not allowed");
+      throw new Error("update not allowed");
     }
-    if(data?.skills.length > 10){
-      throw new error("skills cannot be more then 10");
+    if (data?.skills && data.skills.length > 10) {
+      throw new Error("Skills cannot be more than 10");
     }
     await User.findByIdAndUpdate({ _id: userId }, data);
     res.send("updated successfully");
@@ -73,7 +115,7 @@ app.patch("/user", async (req, res) => {
     res.status(400).send("something went wrong");
   }
 });
-const port = 7777;
+const port = 7666;
 connectDb()
   .then(() => {
     console.log("database connection successfully");
